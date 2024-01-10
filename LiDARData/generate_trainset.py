@@ -3,7 +3,11 @@ import matplotlib.pyplot as plt
 import math
 import json
 
-TRAINSET = 'trainset.json'
+LEFT = 0
+RIGHT = 1
+FORWARD = 2
+STOP = 3
+TRAINSET = 'LiDARData/trainset.json'
 
 def polar_to_cartesiane(angle, distance):
     return (distance * math.cos(angle), distance * math.sin(angle))
@@ -32,22 +36,30 @@ def generate_LiDAR(num=360, max_distance=12.0):
         if (random_points + i) < num:
             lidar_data[random_points + i]['distance'] = random_distance
 
-    lidar_data[90]['distance'] = 8
-    lidar_data[0]['distance'] = 8
-    lidar_data[180]['distance'] = 8
-    lidar_data[-90]['distance'] = 8
+    label = STOP
+    if random_points > 0 and random_points < 90:
+        label = LEFT
+    if random_points < 0 and random_points > -180:
+        label = FORWARD
+    if random_points >= 90 and random_points < 180:
+        label = RIGHT
 
-    return lidar_data
+    return (lidar_data, label)
 
-def LiDAR_to_trainset(lidar_data: list):
-    with open(TRAINSET, 'w'):
-        for data in lidar_data: 
-            (x, y) = polar_to_cartesiane(data['angle'], data['distance'])
-            print(x, y)
+def LiDAR_to_trainset(lidar: list):
+    trainset = []
+    for data in lidar[0]:
+        (x, y) = polar_to_cartesiane(math.radians(data['angle']), data['distance'])
+        trainset.append({'x': x, 'y': y})
 
-lidar_data = generate_LiDAR()
-#print(lidar_data)
+    trainset.append({'label': lidar[1]})
+
+    with open(TRAINSET, 'w') as json_file:
+        json.dump(trainset, json_file, indent=1)
+
+(lidar_data, label) = generate_LiDAR()
 print(lidar_data)
+LiDAR_to_trainset((lidar_data, label))
 
 cartesian_data = [(d['distance'] * math.cos(math.radians(d['angle'])), d['distance'] * math.sin(math.radians(d['angle']))) for d in lidar_data]
 

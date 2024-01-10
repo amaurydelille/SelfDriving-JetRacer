@@ -19,22 +19,24 @@ class NeuralNetwork():
         """
         Constructor of the NeuralNetwork class, siple attributes and properties.
         """
-        self.inputs = inputs
-        self.hidden = hidden
-        self.outputs = outputs
-        self.weights_ih = [[0 for _ in range(self.inputs)] for _ in range(self.hidden)]
-        self.weights_ho = [[0 for _ in range(self.hidden)] for _ in range(self.outputs)]
-        self.bias_ih = [0] * self.hidden
-        self.bias_ho = [0] * self.outputs 
-        self.dW2 = [[0 for _ in range(self.hidden)] for _ in range(self.outputs)]
-        self.dW1 = [[0 for _ in range(self.inputs)] for _ in range(self.hidden)]
-        self.dB1 = [0] * self.hidden
-        self.dB2 = [0] * self.outputs
-        self.dZ1 = [0] * self.hidden
-        self.dZ2 = [0] * self.outputs 
+        self.inputs = [0] * inputs
+        self.hidden = [0] * hidden
+        self.outputs = [0] * outputs
+        self.weights_ih = [[0 for _ in range(inputs)] for _ in range(hidden)]
+        self.weights_ho = [[0 for _ in range(hidden)] for _ in range(outputs)]
+        self.bias_ih = [0] * hidden
+        self.bias_ho = [0] * outputs 
+        self.dW2 = [[0 for _ in range(hidden)] for _ in range(outputs)]
+        self.dW1 = [[0 for _ in range(inputs)] for _ in range(hidden)]
+        self.dB1 = [0] * hidden
+        self.dB2 = [0] * outputs
+        self.dZ1 = [0] * hidden
+        self.dZ2 = [0] * outputs 
         self.learning_rate = LEARNING_RATE
         self.epochs = EPOCHS
         self.samples = samples
+        self.target = []
+        self.accuracy = 0
 
     def xavier_weights(self, shape) -> float:
         """
@@ -54,6 +56,17 @@ class NeuralNetwork():
         else:
             return 0
     
+    def softmax(self):
+        max_val = max(self.outputs)
+        s = 0.0
+
+        for i in range(len(self.outputs)):
+            self.outputs[i] = math.exp(self.outputs[i] - max_val)
+            s += self.outputs[i]
+
+        for i in range(len(self.outputs)):
+            self.outputs[i] /= s 
+    
     def initialize_network(self) -> None:
         self.weights_ih = self.xavier_weights((self.hidden, self.inputs))
         self.weights_ho = self.xavier_weights((self.outputs, self.hidden))
@@ -61,56 +74,70 @@ class NeuralNetwork():
         self.bias_ih = random.randint(-2, 2)
 
     def forward_propagation(self) -> None:
-        for i in range(self.hidden):
-            for j in range(self.inputs):
-                self.hidden[i] = self.weights_ih[i][j] * self.inputs[j]
+        for i in range(len(self.hidden)):
+            self.hidden[i] = 0
+            for j in range(len(self.inputs)):
+                self.hidden[i] += self.weights_ih[i][j] * self.inputs[j]
             self.hidden[i] = self.reLU(self.hidden[i] + self.bias_ih[i])
 
-        for i in range(self.outputs):
-            for j in range(self.hidden):
-                self.outputs[i] = self.weights_ho[i][j] * self.hidden[j]
-            self.outputs[i] = self.reLU(self.outputs[i] + self.bias_ho[i])
+        for i in range(len(self.outputs)):
+            self.outputs[i] = 0
+            for j in range(len(self.hidden)):
+                self.outputs[i] += self.weights_ho[i][j] * self.hidden[j]
+            self.outputs[i] = self.outputs[i] + self.bias_ho[i]
 
-    def backward_propagation(self, target: float, y_pred: list) -> None:
-        one_hot = [0] * self.outputs
-        one_hot[y_pred[target]] = 1
+        self.softmax()
+
+    def backward_propagation(self, target, sample) -> None:
+        one_hot = [0] *len(self.outputs)
+        #if target < len(one_hot):
+        one_hot[target[sample]] = 1
         
-        for i in range(self.outputs):
+        for i in range(len(self.outputs)):
             self.dZ2[i] = self.outputs[i] - one_hot[i]
 
-        for i in range(self.outputs):
-            for j in range(self.hidden):
-                self.dW2[i][j] = self.dZ2 * self.hidden[j] * 1/self.samples
+        for i in range(len(self.outputs)):
+            for j in range(len(self.hidden)):
+                self.dW2[i][j] = self.dZ2[i] * self.hidden[j] * 1/self.samples
             self.dB2[i] = self.dZ2[i] * 1/self.samples
 
-        for i in range(self.hidden):
-            for j in range(self.outputs):
+        for i in range(len(self.hidden)):
+            for j in range(len(self.outputs)):
                 self.dZ1[i] += self.weights_ho[j][i] * self.dZ2[j]
             self.dZ1[i] *= self.reLU_derivative(self.hidden[i])
 
-        for i in range(self.hidden):
-            for j in range(self.inputs):
+        for i in range(len(self.hidden)):
+            for j in range(len(self.inputs)):
                 self.dW1[i][j] = self.dZ1[i] * self.inputs[j]
             self.dB1[i] = self.dZ1[i]
 
     def update_parameters(self):
-        for i in range(self.hidden):
-            for j in range(self.inputs):
+        for i in range(len(self.hidden)):
+            for j in range(len(self.inputs)):
                 self.weights_ih[i][j] -= self.learning_rate * self.dW1[i][j]
-            self.bias_ih[i] -= self.learning_rate * self.dB2[i]
+            self.bias_ih[i] -= self.learning_rate * self.dB1[i]
 
-        for i in range(self.outputs):
-            for j in range(self.hidden):
+        for i in range(len(self.outputs)):
+            for j in range(len(self.hidden)):
                 self.weights_ho[i][j] -= self.learning_rate * self.dW2[i][j]
             self.bias_ho[i] -= self.learning_rate * self.dB2[i]
 
-    def gradient_descent(self, y, trainset):
+    def get_prediction(self):
+        return self.outputs.index(max(self.outputs))
+
+    def gradient_descent(self, target, trainset):
         for epoch in range(self.epochs):
+            self.accuracy = 0
             for sample in range(self.samples):
                 self.inupts = trainset[sample]
 
                 self.forward_propagation()
-                self.backward_propagation(y, sample)
+
+                if self.get_prediction() == self.target[sample]:
+                    self.accuracy += 1
+                
+                if epoch % 10 == 0:
+                    print(epoch, self.accuracy / (sample + 1))
+
+                self.backward_propagation(target, sample)
                 self.update_parameters()
-            if epoch % 10 == 0:
-                print(epoch)

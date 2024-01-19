@@ -39,7 +39,9 @@ def generate_LiDAR(num=360, max_distance=12.0):
     label = STOP
     if random_points > 0 and random_points < 90:
         label = LEFT
-    if random_points < 0 and random_points > -180:
+    if random_points < 0 and random_points > -90:
+        label = FORWARD
+    if random_points >= -90 and random_points < 180:
         label = FORWARD
     if random_points >= 90 and random_points < 180:
         label = RIGHT

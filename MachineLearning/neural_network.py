@@ -3,7 +3,7 @@ import math
 
 INPUTS = 720
 HIDDEN = 20
-OUTPUTS = 4 
+OUTPUTS = 1
 LEARNING_RATE = 0.2
 EPOCHS = 200
 SAMPLES = 300
@@ -17,7 +17,7 @@ The issue here is to know what our neural network should return :
 class NeuralNetwork():
     def __init__(self, inputs = INPUTS, hidden = HIDDEN, outputs = OUTPUTS, samples = SAMPLES ) -> None:
         """
-        Constructor of the NeuralNetwork class, siple attributes and properties.
+        Constructor of the NeuralNetwork class, simple attributes and properties.
         """
         self.inputs = [0] * inputs
         self.hidden = [0] * hidden
@@ -86,16 +86,7 @@ class NeuralNetwork():
                 self.outputs[i] += self.weights_ho[i][j] * self.hidden[j]
             self.outputs[i] = self.outputs[i] + self.bias_ho[i]
 
-        self.softmax()
-
     def backward_propagation(self, target, sample) -> None:
-        one_hot = [0] *len(self.outputs)
-        #if target < len(one_hot):
-        one_hot[target[sample]] = 1
-        
-        for i in range(len(self.outputs)):
-            self.dZ2[i] = self.outputs[i] - one_hot[i]
-
         for i in range(len(self.outputs)):
             for j in range(len(self.hidden)):
                 self.dW2[i][j] = self.dZ2[i] * self.hidden[j] * 1/self.samples
@@ -133,11 +124,14 @@ class NeuralNetwork():
 
                 self.forward_propagation()
 
+                loss = sum((target[sample] - self.outputs[0]) ** 2) / 2.0
+                total_loss += loss
+
                 if self.get_prediction() == self.target[sample]:
                     self.accuracy += 1
-                
-                if epoch % 10 == 0:
-                    print(epoch, self.accuracy / (sample + 1))
+
+                if epoch % 10 == 0 and sample == self.samples - 1:
+                    print(f"Epoch {epoch}, Loss: {total_loss / self.samples}, Accuracy: {self.accuracy / self.samples}")
 
                 self.backward_propagation(target, sample)
                 self.update_parameters()
